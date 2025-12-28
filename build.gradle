@@ -72,8 +72,10 @@ graalvmNative {
 
 // -----------------------------------------------------------------------------
 // DEB and RPM packaging using fpm
+// Packages can be built from either native binary or JAR
 // -----------------------------------------------------------------------------
 def nativeBinaryPath = layout.buildDirectory.file('native/nativeCompile/casdial').get().asFile
+def jarFile = tasks.jar.archiveFile.get().asFile
 def packagingDir = layout.buildDirectory.dir('packaging').get().asFile
 def debOutputDir = layout.buildDirectory.dir('distributions/deb').get().asFile
 def rpmOutputDir = layout.buildDirectory.dir('distributions/rpm').get().asFile
@@ -81,20 +83,41 @@ def rpmOutputDir = layout.buildDirectory.dir('distributions/rpm').get().asFile
 task preparePackaging {
     group = 'distribution'
     description = 'Prepares directory structure for packaging'
-    dependsOn tasks.named('nativeCompile')
     
     doLast {
         delete packagingDir
         def binDir = new File(packagingDir, 'usr/bin')
+        def shareDir = new File(packagingDir, 'usr/share/casdial')
         binDir.mkdirs()
+        shareDir.mkdirs()
         
-        copy {
-            from nativeBinaryPath
-            into binDir
-            fileMode = 0755
+        // Check if native binary exists, otherwise use JAR
+        if (nativeBinaryPath.exists()) {
+            copy {
+                from nativeBinaryPath
+                into binDir
+                fileMode = 0755
+            }
+        } else {
+            // Copy JAR
+            copy {
+                from jarFile
+                into shareDir
+            }
+            
+            // Create wrapper script
+            def wrapperScript = new File(binDir, 'casdial')
+            wrapperScript.text = '''#!/bin/bash
+JAVA_CMD="${JAVA_HOME:-/usr}/bin/java"
+exec "$JAVA_CMD" -jar /usr/share/casdial/''' + jarFile.name + ''' "$@"
+'''
+            wrapperScript.setExecutable(true)
         }
     }
 }
+
+// Make preparePackaging depend on jar but not nativeCompile
+preparePackaging.dependsOn(tasks.named('jar'))
 
 task buildDeb(type: Exec) {
     group = 'distribution'
@@ -118,6 +141,7 @@ task buildDeb(type: Exec) {
         '--url', 'https://github.com/crramirez/casdial',
         '--maintainer', 'Carlos Rafael Ramirez',
         '--license', 'MIT',
+        '--depends', 'default-jre | java21-runtime',
         '-C', packagingDir.absolutePath,
         '-p', "${debOutputDir.absolutePath}/casdial_${packageVersion}-1_amd64.deb",
         '.'
@@ -145,6 +169,7 @@ task buildRpm(type: Exec) {
         '--url', 'https://github.com/crramirez/casdial',
         '--maintainer', 'Carlos Rafael Ramirez',
         '--license', 'MIT',
+        '--depends', 'java >= 1.21.0',
         '-C', packagingDir.absolutePath,
         '-p', "${rpmOutputDir.absolutePath}/casdial-${packageVersion}-1.x86_64.rpm",
         '.'
@@ -154,5 +179,12 @@ task buildPackages {
     group = 'distribution'
     description = 'Builds both DEB and RPM packages'
     dependsOn buildDeb, buildRpm
+}
+
+// Optional: task to build with native image first
+task buildNativePackages {
+    group = 'distribution'
+    description = 'Builds native binary then creates DEB and RPM packages'
+    dependsOn tasks.named('nativeCompile'), buildPackages
 }
 

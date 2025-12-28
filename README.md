@@ -41,8 +41,9 @@ java -jar build/libs/casdial-<version>.jar
 
 If you have GraalVM Java 25 installed with native-image:
 
-1. Edit `build.gradle` and uncomment the `javaLauncher` section in the `graalvmNative` block
-2. Run:
+1. Install GraalVM Java 25 with native-image support
+2. Edit `build.gradle` and uncomment the `javaLauncher` section in the `graalvmNative` block
+3. Run:
 
 ```bash
 ./gradlew nativeCompile
@@ -50,16 +51,33 @@ If you have GraalVM Java 25 installed with native-image:
 
 This creates a native executable at `build/native/nativeCompile/casdial`
 
-### Creating DEB and RPM Packages
+#### Building Native Packages
 
-After building the native image:
+To build packages with the native binary:
 
 ```bash
-# Install fpm if not already installed
+./gradlew buildNativePackages
+```
+
+This will first compile the native image, then create both DEB and RPM packages with the native binary.
+
+### Creating DEB and RPM Packages
+
+The project supports creating both DEB and RPM packages for Linux. The packages can be built from either the native binary (if available) or from the JAR file with a wrapper script.
+
+#### Prerequisites for Packaging
+
+```bash
+# Install fpm and dependencies
 sudo apt-get install ruby ruby-dev build-essential rpm
 sudo gem install fpm
+```
 
-# Build packages
+#### Building Packages
+
+Build both DEB and RPM packages:
+
+```bash
 ./gradlew buildPackages
 ```
 
@@ -68,6 +86,28 @@ Or build individually:
 ```bash
 ./gradlew buildDeb    # Creates DEB package in build/distributions/deb/
 ./gradlew buildRpm    # Creates RPM package in build/distributions/rpm/
+```
+
+The packages will include:
+- `/usr/bin/casdial` - Executable wrapper script (or native binary if built with GraalVM)
+- `/usr/share/casdial/casdial-<version>.jar` - Application JAR (when not using native image)
+
+#### Installing the Packages
+
+**Debian/Ubuntu:**
+```bash
+sudo dpkg -i build/distributions/deb/casdial_0.1.0-1_amd64.deb
+sudo apt-get install -f  # Install dependencies if needed
+```
+
+**RedHat/CentOS/Fedora:**
+```bash
+sudo rpm -ivh build/distributions/rpm/casdial-0.1.0-1.x86_64.rpm
+```
+
+After installation, you can run the application:
+```bash
+casdial
 ```
 
 ## Project Structure
