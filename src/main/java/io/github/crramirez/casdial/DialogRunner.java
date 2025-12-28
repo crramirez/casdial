@@ -55,12 +55,12 @@ public class DialogRunner {
     /**
      * The result from the dialog.
      */
-    private String result = "";
+    private volatile String result = "";
 
     /**
      * The exit code.
      */
-    private int exitCode = EXIT_ESC;
+    private volatile int exitCode = EXIT_ESC;
 
     /**
      * Construct with options.

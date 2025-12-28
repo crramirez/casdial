@@ -93,6 +93,7 @@ public class FileSelectDialog extends BaseDialog {
         final String initialPath = startPath;
         treeView = addTreeViewWidget(1, 3, treeWidth, contentHeight,
                 new TAction() {
+                    @Override
                     public void DO() {
                         TTreeItem item = treeView.getSelected();
                         if (item instanceof TDirectoryTreeItem) {
@@ -102,7 +103,7 @@ public class FileSelectDialog extends BaseDialog {
                                 pathField.setText(path);
                                 directoryList.setPath(path);
                             } catch (IOException e) {
-                                // Ignore
+                                System.err.println("Error getting canonical path: " + e.getMessage());
                             }
                         }
                     }
@@ -111,11 +112,12 @@ public class FileSelectDialog extends BaseDialog {
         try {
             new TDirectoryTreeItem(treeView, initialPath, true);
         } catch (Exception e) {
+            System.err.println("Failed to create tree for path '" + initialPath + "': " + e.getMessage());
             // Failed to create tree - use current directory
             try {
                 new TDirectoryTreeItem(treeView, System.getProperty("user.dir"), true);
             } catch (Exception e2) {
-                // Ignore
+                System.err.println("Failed to create tree for current directory: " + e2.getMessage());
             }
         }
 
@@ -123,6 +125,7 @@ public class FileSelectDialog extends BaseDialog {
         directoryList = addDirectoryList(initialPath, treeWidth + 2, 3,
                 listWidth, contentHeight,
                 new TAction() {
+                    @Override
                     public void DO() {
                         // Double-click - select the file/directory
                         try {
@@ -137,11 +140,12 @@ public class FileSelectDialog extends BaseDialog {
                                 }
                             }
                         } catch (IOException e) {
-                            // Ignore
+                            System.err.println("Error processing selection: " + e.getMessage());
                         }
                     }
                 },
                 new TAction() {
+                    @Override
                     public void DO() {
                         // Single-click - update path field
                         try {
@@ -150,7 +154,7 @@ public class FileSelectDialog extends BaseDialog {
                                 pathField.setText(selected.getCanonicalPath());
                             }
                         } catch (IOException e) {
-                            // Ignore
+                            System.err.println("Error getting path: " + e.getMessage());
                         }
                     }
                 }, null);
@@ -171,6 +175,7 @@ public class FileSelectDialog extends BaseDialog {
             int startX = (getWidth() - totalWidth) / 2;
 
             addButton(okLabel, startX, buttonY, new TAction() {
+                @Override
                 public void DO() {
                     checkPath();
                 }
@@ -178,6 +183,7 @@ public class FileSelectDialog extends BaseDialog {
 
             if (!options.isNoCancel()) {
                 addButton(cancelLabel, startX + okWidth + 2, buttonY, new TAction() {
+                    @Override
                     public void DO() {
                         closeCancel();
                     }
@@ -186,6 +192,7 @@ public class FileSelectDialog extends BaseDialog {
         } else if (!options.isNoCancel()) {
             int startX = (getWidth() - cancelWidth) / 2;
             addButton(cancelLabel, startX, buttonY, new TAction() {
+                @Override
                 public void DO() {
                     closeCancel();
                 }

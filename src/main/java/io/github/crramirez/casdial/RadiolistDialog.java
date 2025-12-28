@@ -112,6 +112,7 @@ public class RadiolistDialog extends BaseDialog {
             int startX = (getWidth() - totalWidth) / 2;
 
             addButton(okLabel, startX, buttonY, new TAction() {
+                @Override
                 public void DO() {
                     int selected = radioGroup.getSelected();
                     if (selected > 0 && selected <= tags.size()) {
@@ -124,6 +125,7 @@ public class RadiolistDialog extends BaseDialog {
 
             if (!options.isNoCancel()) {
                 addButton(cancelLabel, startX + okWidth + 2, buttonY, new TAction() {
+                    @Override
                     public void DO() {
                         closeCancel();
                     }
@@ -132,6 +134,7 @@ public class RadiolistDialog extends BaseDialog {
         } else if (!options.isNoCancel()) {
             int startX = (getWidth() - cancelWidth) / 2;
             addButton(cancelLabel, startX, buttonY, new TAction() {
+                @Override
                 public void DO() {
                     closeCancel();
                 }

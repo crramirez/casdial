@@ -65,6 +65,7 @@ public class InputBoxDialog extends BaseDialog {
         if (isPassword && !options.isInsecure()) {
             inputField = addPasswordField(1, fieldY, fieldWidth, false,
                     options.getInitialValue(), new TAction() {
+                        @Override
                         public void DO() {
                             closeOk(inputField.getText());
                         }
@@ -72,6 +73,7 @@ public class InputBoxDialog extends BaseDialog {
         } else {
             inputField = addField(1, fieldY, fieldWidth, false,
                     options.getInitialValue(), new TAction() {
+                        @Override
                         public void DO() {
                             closeOk(inputField.getText());
                         }
@@ -94,6 +96,7 @@ public class InputBoxDialog extends BaseDialog {
             int startX = (getWidth() - totalWidth) / 2;
 
             addButton(okLabel, startX, buttonY, new TAction() {
+                @Override
                 public void DO() {
                     closeOk(inputField.getText());
                 }
@@ -101,6 +104,7 @@ public class InputBoxDialog extends BaseDialog {
 
             if (!options.isNoCancel()) {
                 addButton(cancelLabel, startX + okWidth + 2, buttonY, new TAction() {
+                    @Override
                     public void DO() {
                         closeCancel();
                     }
@@ -109,6 +113,7 @@ public class InputBoxDialog extends BaseDialog {
         } else if (!options.isNoCancel()) {
             int startX = (getWidth() - cancelWidth) / 2;
             addButton(cancelLabel, startX, buttonY, new TAction() {
+                @Override
                 public void DO() {
                     closeCancel();
                 }
