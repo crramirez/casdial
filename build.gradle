@@ -82,42 +82,28 @@ def rpmOutputDir = layout.buildDirectory.dir('distributions/rpm').get().asFile
 
 task preparePackaging {
     group = 'distribution'
-    description = 'Prepares directory structure for packaging'
+    description = 'Prepares directory structure for packaging (requires native binary)'
+    
+    doFirst {
+        if (!nativeBinaryPath.exists()) {
+            throw new GradleException("Native binary not found at ${nativeBinaryPath}. Run './gradlew nativeCompile' first to build the native executable.")
+        }
+    }
     
     doLast {
         delete packagingDir
         def binDir = new File(packagingDir, 'usr/bin')
-        def shareDir = new File(packagingDir, 'usr/share/casdial')
         binDir.mkdirs()
-        shareDir.mkdirs()
         
-        // Check if native binary exists, otherwise use JAR
-        if (nativeBinaryPath.exists()) {
-            copy {
-                from nativeBinaryPath
-                into binDir
-                fileMode = 0755
-            }
-        } else {
-            // Copy JAR
-            copy {
-                from jarFile
-                into shareDir
-            }
-            
-            // Create wrapper script
-            def wrapperScript = new File(binDir, 'casdial')
-            wrapperScript.text = '''#!/bin/bash
-JAVA_CMD="${JAVA_HOME:-/usr}/bin/java"
-exec "$JAVA_CMD" -jar /usr/share/casdial/''' + jarFile.name + ''' "$@"
-'''
-            wrapperScript.setExecutable(true)
+        copy {
+            from nativeBinaryPath
+            into binDir
         }
+        
+        // Make the binary executable
+        new File(binDir, 'casdial').setExecutable(true, false)
     }
 }
-
-// Make preparePackaging depend on jar but not nativeCompile
-preparePackaging.dependsOn(tasks.named('jar'))
 
 task buildDeb(type: Exec) {
     group = 'distribution'
@@ -140,8 +126,7 @@ task buildDeb(type: Exec) {
         '--description', 'Dialog command compatible based on casciian',
         '--url', 'https://github.com/crramirez/casdial',
         '--maintainer', 'Carlos Rafael Ramirez',
-        '--license', 'MIT',
-        '--depends', 'default-jre | java21-runtime',
+        '--license', 'Apache-2.0',
         '-C', packagingDir.absolutePath,
         '-p', "${debOutputDir.absolutePath}/casdial_${packageVersion}-1_amd64.deb",
         '.'
@@ -168,8 +153,7 @@ task buildRpm(type: Exec) {
         '--description', 'Dialog command compatible based on casciian',
         '--url', 'https://github.com/crramirez/casdial',
         '--maintainer', 'Carlos Rafael Ramirez',
-        '--license', 'MIT',
-        '--depends', 'java >= 1.21.0',
+        '--license', 'Apache-2.0',
         '-C', packagingDir.absolutePath,
         '-p', "${rpmOutputDir.absolutePath}/casdial-${packageVersion}-1.x86_64.rpm",
         '.'
@@ -177,14 +161,7 @@ task buildRpm(type: Exec) {
 
 task buildPackages {
     group = 'distribution'
-    description = 'Builds both DEB and RPM packages'
+    description = 'Builds both DEB and RPM packages (requires native binary)'
     dependsOn buildDeb, buildRpm
-}
-
-// Optional: task to build with native image first
-task buildNativePackages {
-    group = 'distribution'
-    description = 'Builds native binary then creates DEB and RPM packages'
-    dependsOn tasks.named('nativeCompile'), buildPackages
 }
 

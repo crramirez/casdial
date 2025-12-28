@@ -37,11 +37,25 @@ export JAVA_HOME=/usr/lib/jvm/temurin-21-jdk-amd64
 java -jar build/libs/casdial-<version>.jar
 ```
 
-### Native Image Compilation (Optional)
+### Native Image Compilation (Required for Packaging)
 
-If you have GraalVM Java 25 installed with native-image:
+The DEB and RPM packages require a native binary. You need GraalVM Java 25 with native-image installed.
 
-1. Install GraalVM Java 25 with native-image support
+#### Installing GraalVM
+
+You can install GraalVM using SDKMAN:
+
+```bash
+curl -s "https://get.sdkman.io" | bash
+source "$HOME/.sdkman/bin/sdkman-init.sh"
+sdk install java 25.0.0.r25-graalce
+```
+
+Or download directly from [GraalVM Downloads](https://www.graalvm.org/downloads/).
+
+#### Building Native Binary
+
+1. Ensure GraalVM Java 25 is installed and configured
 2. Edit `build.gradle` and uncomment the `javaLauncher` section in the `graalvmNative` block
 3. Run:
 
@@ -51,19 +65,9 @@ If you have GraalVM Java 25 installed with native-image:
 
 This creates a native executable at `build/native/nativeCompile/casdial`
 
-#### Building Native Packages
-
-To build packages with the native binary:
-
-```bash
-./gradlew buildNativePackages
-```
-
-This will first compile the native image, then create both DEB and RPM packages with the native binary.
-
 ### Creating DEB and RPM Packages
 
-The project supports creating both DEB and RPM packages for Linux. The packages can be built from either the native binary (if available) or from the JAR file with a wrapper script.
+**Important:** The packages require a native binary. You must first compile the native binary using GraalVM (see above).
 
 #### Prerequisites for Packaging
 
@@ -75,7 +79,7 @@ sudo gem install fpm
 
 #### Building Packages
 
-Build both DEB and RPM packages:
+After compiling the native binary, build both DEB and RPM packages:
 
 ```bash
 ./gradlew buildPackages
@@ -88,9 +92,8 @@ Or build individually:
 ./gradlew buildRpm    # Creates RPM package in build/distributions/rpm/
 ```
 
-The packages will include:
-- `/usr/bin/casdial` - Executable wrapper script (or native binary if built with GraalVM)
-- `/usr/share/casdial/casdial-<version>.jar` - Application JAR (when not using native image)
+The packages will include only:
+- `/usr/bin/casdial` - Native executable binary
 
 #### Installing the Packages
 
@@ -127,7 +130,7 @@ casdial/
 
 ## License
 
-MIT License - Copyright 2025 Carlos Rafael Ramirez
+Apache License 2.0 - Copyright 2025 Carlos Rafael Ramirez
 
 ## Dependencies
 
