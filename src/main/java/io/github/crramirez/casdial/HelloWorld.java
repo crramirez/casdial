@@ -19,7 +19,6 @@ package io.github.crramirez.casdial;
 
 import casciian.TApplication;
 import casciian.TWindow;
-import casciian.TLabel;
 
 /**
  * Simple Hello World application using Casciian TUI library.
