@@ -10,6 +10,8 @@ java {
     toolchain {
         languageVersion = JavaLanguageVersion.of(21)
     }
+    withSourcesJar()
+    withJavadocJar()
 }
 
 application {
@@ -21,7 +23,7 @@ repositories {
 }
 
 dependencies {
-    implementation 'io.github.crramirez:casciian:0.7'
+    implementation 'io.github.crramirez:casciian:1.0'
 }
 
 sourceSets {
@@ -48,20 +50,38 @@ tasks.jar {
     }
 }
 
+tasks.register('jarFull', Jar) {
+    group = 'build'
+    description = 'Builds a fat/uber JAR with all dependencies included'
+    archiveClassifier = 'full'
+    
+    manifest {
+        attributes(
+                'Main-Class': application.mainClass.get(),
+                'Implementation-Version': project.version
+        )
+    }
+
+    from {
+        configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) }
+    }
+
+    with tasks.jar
+}
+
 // -----------------------------------------------------------------------------
 // GraalVM native-image via official plugin
 // Requires GraalVM Java 25 with native-image to be installed
 // To build: ./gradlew nativeCompile
 // -----------------------------------------------------------------------------
 graalvmNative {
-    toolchainDetection = false
+    toolchainDetection = true
     binaries {
         main {
-            // Uncomment below when GraalVM 25 is installed
-            // javaLauncher = javaToolchains.launcherFor {
-            //     languageVersion = JavaLanguageVersion.of(25)
-            //     vendor = JvmVendorSpec.matching('GraalVM Community')
-            // }
+            javaLauncher = javaToolchains.launcherFor {
+                languageVersion = JavaLanguageVersion.of(25)
+                vendor = JvmVendorSpec.matching('GraalVM Community')
+            }
 
             imageName = 'casdial'
             buildArgs.add('-march=compatibility')
@@ -75,91 +95,91 @@ graalvmNative {
 // Packages can be built from either native binary or JAR
 // -----------------------------------------------------------------------------
 def nativeBinaryPath = layout.buildDirectory.file('native/nativeCompile/casdial').get().asFile
-def jarFile = tasks.jar.archiveFile.get().asFile
 def packagingDir = layout.buildDirectory.dir('packaging').get().asFile
 def debOutputDir = layout.buildDirectory.dir('distributions/deb').get().asFile
 def rpmOutputDir = layout.buildDirectory.dir('distributions/rpm').get().asFile
 
-task preparePackaging {
+tasks.register('preparePackaging') {
     group = 'distribution'
     description = 'Prepares directory structure for packaging (requires native binary)'
-    
+    dependsOn tasks.named('nativeCompile')
+
     doFirst {
         if (!nativeBinaryPath.exists()) {
             throw new GradleException("Native binary not found at ${nativeBinaryPath}. Run './gradlew nativeCompile' first to build the native executable.")
         }
     }
-    
+
     doLast {
         delete packagingDir
         def binDir = new File(packagingDir, 'usr/bin')
         binDir.mkdirs()
-        
+
         copy {
             from nativeBinaryPath
             into binDir
         }
-        
+
         // Make the binary executable
         new File(binDir, 'casdial').setExecutable(true, false)
     }
 }
 
-task buildDeb(type: Exec) {
+tasks.register('buildDeb', Exec) {
     group = 'distribution'
     description = 'Builds DEB package using fpm'
     dependsOn preparePackaging
-    
+
     doFirst {
         debOutputDir.mkdirs()
     }
-    
+
     def packageVersion = project.version.toString().replace('-SNAPSHOT', '')
-    
+
     commandLine 'fpm',
-        '-s', 'dir',
-        '-t', 'deb',
-        '-n', 'casdial',
-        '-v', packageVersion,
-        '--iteration', '1',
-        '-a', 'amd64',
-        '--description', 'Dialog command compatible based on casciian',
-        '--url', 'https://github.com/crramirez/casdial',
-        '--maintainer', 'Carlos Rafael Ramirez',
-        '--license', 'Apache-2.0',
-        '-C', packagingDir.absolutePath,
-        '-p', "${debOutputDir.absolutePath}/casdial_${packageVersion}-1_amd64.deb",
-        '.'
+            '-s', 'dir',
+            '-t', 'deb',
+            '-n', 'casdial',
+            '-v', packageVersion,
+            '--iteration', '1',
+            '-a', 'amd64',
+            '--description', 'Dialog command compatible based on casciian',
+            '--url', 'https://github.com/crramirez/casdial',
+            '--maintainer', 'Carlos Rafael Ramirez',
+            '--license', 'Apache-2.0',
+            '-C', packagingDir.absolutePath,
+            '-p', "${debOutputDir.absolutePath}/casdial_${packageVersion}-1_amd64.deb",
+            '.'
 }
 
-task buildRpm(type: Exec) {
+tasks.register('buildRpm', Exec) {
     group = 'distribution'
     description = 'Builds RPM package using fpm'
     dependsOn preparePackaging
-    
+
     doFirst {
         rpmOutputDir.mkdirs()
     }
-    
+
     def packageVersion = project.version.toString().replace('-SNAPSHOT', '')
-    
+
     commandLine 'fpm',
-        '-s', 'dir',
-        '-t', 'rpm',
-        '-n', 'casdial',
-        '-v', packageVersion,
-        '--iteration', '1',
-        '-a', 'x86_64',
-        '--description', 'Dialog command compatible based on casciian',
-        '--url', 'https://github.com/crramirez/casdial',
-        '--maintainer', 'Carlos Rafael Ramirez',
-        '--license', 'Apache-2.0',
-        '-C', packagingDir.absolutePath,
-        '-p', "${rpmOutputDir.absolutePath}/casdial-${packageVersion}-1.x86_64.rpm",
-        '.'
+            '-s', 'dir',
+            '-t', 'rpm',
+            '-n', 'casdial',
+            '-v', packageVersion,
+            '--iteration', '1',
+            '-a', 'x86_64',
+            '--description', 'Dialog command compatible based on casciian',
+            '--url', 'https://github.com/crramirez/casdial',
+            '--maintainer', 'Carlos Rafael Ramirez',
+            '--license', 'Apache-2.0',
+            '-C', packagingDir.absolutePath,
+            '-p', "${rpmOutputDir.absolutePath}/casdial-${packageVersion}-1.x86_64.rpm",
+            '.'
 }
 
-task buildPackages {
+tasks.register('buildPackages') {
     group = 'distribution'
     description = 'Builds both DEB and RPM packages (requires native binary)'
     dependsOn buildDeb, buildRpm

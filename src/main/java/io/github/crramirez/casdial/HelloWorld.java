@@ -18,7 +18,9 @@
 package io.github.crramirez.casdial;
 
 import casciian.TApplication;
+import casciian.TCommand;
 import casciian.TWindow;
+import casciian.event.TCommandEvent;
 
 /**
  * Simple Hello World application using Casciian TUI library.
@@ -35,18 +37,18 @@ public class HelloWorld extends TApplication {
         
         // Create a window
         TWindow window = addWindow("Hello World", 0, 0, 50, 10,
-                TWindow.CENTERED | TWindow.MODAL);
-        
+                TWindow.CENTERED | TWindow.MODAL | TWindow.NOCLOSEBOX);
+
         // Add a label with the hello world message
-        window.addLabel("Hello World from Casciian!", 2, 2);
-        window.addLabel("", 2, 3);
-        window.addLabel("This is a simple TUI application", 2, 4);
-        window.addLabel("built with the Casciian library.", 2, 5);
+        int row = 1;
+        window.addLabel("Hello World from Casciian!", 2, row++);
+        window.addLabel("", 2, row++);
+        window.addLabel("This is a simple TUI application", 2, row++);
+        window.addLabel("built with the Casciian library.", 2, row++);
         
         // Add a button to exit
-        window.addButton("&Exit", 2, 7, () -> { 
-            this.exit(); 
-        });
+        row++;
+        window.addButton("&Exit", 2, row++, this::exit);
     }
 
     /**
