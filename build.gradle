@@ -50,15 +50,18 @@ tasks.jar {
 
 // -----------------------------------------------------------------------------
 // GraalVM native-image via official plugin
+// Requires GraalVM Java 25 with native-image to be installed
+// To build: ./gradlew nativeCompile
 // -----------------------------------------------------------------------------
 graalvmNative {
-    toolchainDetection = true
+    toolchainDetection = false
     binaries {
         main {
-            javaLauncher = javaToolchains.launcherFor {
-                languageVersion = JavaLanguageVersion.of(25)
-                vendor = JvmVendorSpec.matching('GraalVM Community')
-            }
+            // Uncomment below when GraalVM 25 is installed
+            // javaLauncher = javaToolchains.launcherFor {
+            //     languageVersion = JavaLanguageVersion.of(25)
+            //     vendor = JvmVendorSpec.matching('GraalVM Community')
+            // }
 
             imageName = 'casdial'
             buildArgs.add('-march=compatibility')
