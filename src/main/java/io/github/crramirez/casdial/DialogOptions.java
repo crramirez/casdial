@@ -538,6 +538,14 @@ public class DialogOptions {
             if (parsed < 1900 || parsed > 2100) {
                 throw new DialogException("Invalid year value (must be between 1900 and 2100): " + value);
             }
+        } else if ("percent".equals(name)) {
+            if (parsed < 0 || parsed > 100) {
+                throw new DialogException("Invalid percent value (must be between 0 and 100): " + value);
+            }
+        } else if ("menu-height".equals(name)) {
+            if (parsed <= 0) {
+                throw new DialogException("Invalid menu-height value (must be > 0): " + value);
+            }
         }
 
         return parsed;
