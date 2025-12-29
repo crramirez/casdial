@@ -56,8 +56,7 @@ Or download directly from [GraalVM Downloads](https://www.graalvm.org/downloads/
 #### Building Native Binary
 
 1. Ensure GraalVM Java 25 is installed and configured
-2. Edit `build.gradle` and uncomment the `javaLauncher` section in the `graalvmNative` block
-3. Run:
+2. Run:
 
 ```bash
 ./gradlew nativeCompile
@@ -134,5 +133,5 @@ Apache License 2.0 - Copyright 2025 Carlos Rafael Ramirez
 
 ## Dependencies
 
-- [Casciian 0.7](https://github.com/crramirez/casciian) - Java Text User Interface library
+- [Casciian 1.0](https://github.com/crramirez/casciian) - Java Text User Interface library
 
