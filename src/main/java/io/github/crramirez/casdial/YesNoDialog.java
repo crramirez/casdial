@@ -62,21 +62,21 @@ public class YesNoDialog extends BaseDialog {
         int buttonY = getHeight() - 4;
 
         TButton yesButton = addButton(yesLabel, startX, buttonY, new TAction() {
+            @Override
             public void DO() {
                 closeOk("");
             }
         });
 
         addButton(noLabel, startX + yesWidth + 2, buttonY, new TAction() {
+            @Override
             public void DO() {
                 closeCancel();
             }
         });
 
-        // Set default button focus
-        if ("no".equalsIgnoreCase(options.getDefaultButton())) {
-            // Focus will be on No button by default tab order
-        } else {
+        // Set default button focus. When "no" is the default, rely on tab order for No.
+        if (!"no".equalsIgnoreCase(options.getDefaultButton())) {
             activate(yesButton);
         }
     }

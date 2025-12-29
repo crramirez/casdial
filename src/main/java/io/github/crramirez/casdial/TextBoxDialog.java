@@ -23,6 +23,7 @@ import casciian.TText;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 
 /**
@@ -50,7 +51,7 @@ public class TextBoxDialog extends BaseDialog {
             try {
                 File file = new File(filePath);
                 if (file.exists() && file.isFile()) {
-                    content = new String(Files.readAllBytes(file.toPath()));
+                    content = Files.readString(file.toPath(), StandardCharsets.UTF_8);
                 } else {
                     content = "Error: File not found: " + filePath;
                 }
@@ -63,9 +64,7 @@ public class TextBoxDialog extends BaseDialog {
         int textWidth = getWidth() - 2;
         int textHeight = getHeight() - 6;
 
-        /**
-         * The text widget.
-         */
+        // The text widget.
         addText(content, 1, 1, textWidth, textHeight);
 
         // Add Exit button at the bottom
@@ -75,6 +74,7 @@ public class TextBoxDialog extends BaseDialog {
         int buttonY = getHeight() - 4;
 
         addButton(exitLabel, buttonX, buttonY, new TAction() {
+            @Override
             public void DO() {
                 closeOk("");
             }

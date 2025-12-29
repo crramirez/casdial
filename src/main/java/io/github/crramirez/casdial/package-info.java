@@ -25,7 +25,7 @@
  * <pre>
  * casDial --title "Hello" --msgbox "Welcome to CasDial!" 10 40
  * casDial --yesno "Do you want to continue?" 10 40
- * result=$(casDial --inputbox "Enter your name:" 10 40 2>&1)
+ * result=$(casDial --inputbox "Enter your name:" 10 40 2&gt;&amp;1)
  * </pre>
  *
  * <p>Supported dialog types:</p>

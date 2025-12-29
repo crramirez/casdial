@@ -53,6 +53,7 @@ public class InfoBoxDialog extends BaseDialog {
         // Auto-close after a short delay (like dialog's infobox)
         // The infobox is meant to be displayed briefly
         application.addTimer(500, false, new casciian.TAction() {
+            @Override
             public void DO() {
                 closeOk("");
             }

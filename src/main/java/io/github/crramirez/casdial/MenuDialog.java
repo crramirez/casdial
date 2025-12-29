@@ -85,7 +85,7 @@ public class MenuDialog extends BaseDialog {
             tags.add(item[0]);
             // Format: tag - description
             String format = " %-" + maxTagWidth + "s  %s";
-            displayItems.add(format.formatted(item[0], item[1]));
+            displayItems.add(String.format(format, item[0], item[1]));
         }
 
         // Calculate list dimensions
@@ -102,6 +102,7 @@ public class MenuDialog extends BaseDialog {
         // Add the menu list
         menuList = addList(displayItems, 1, listY, listWidth, listHeight + 1,
                 new TAction() {
+                    @Override
                     public void DO() {
                         // Enter pressed on item
                         int idx = menuList.getSelectedIndex();
@@ -111,6 +112,7 @@ public class MenuDialog extends BaseDialog {
                     }
                 },
                 new TAction() {
+                    @Override
                     public void DO() {
                         // Move action (optional)
                     }
@@ -150,6 +152,7 @@ public class MenuDialog extends BaseDialog {
             int startX = (getWidth() - totalWidth) / 2;
 
             addButton(okLabel, startX, buttonY, new TAction() {
+                @Override
                 public void DO() {
                     int idx = menuList.getSelectedIndex();
                     if (idx >= 0 && idx < tags.size()) {
@@ -162,6 +165,7 @@ public class MenuDialog extends BaseDialog {
 
             if (!options.isNoCancel()) {
                 addButton(cancelLabel, startX + okWidth + 2, buttonY, new TAction() {
+                    @Override
                     public void DO() {
                         closeCancel();
                     }
@@ -170,6 +174,7 @@ public class MenuDialog extends BaseDialog {
         } else if (!options.isNoCancel()) {
             int startX = (getWidth() - cancelWidth) / 2;
             addButton(cancelLabel, startX, buttonY, new TAction() {
+                @Override
                 public void DO() {
                     closeCancel();
                 }

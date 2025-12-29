@@ -221,11 +221,18 @@ public class DialogOptions {
                     throw new DialogException("--output-fd requires an argument");
                 }
                 // For simplicity, we only support stdout (1) and stderr (2)
-                int fd = Integer.parseInt(args[i]);
+                int fd;
+                try {
+                    fd = Integer.parseInt(args[i]);
+                } catch (NumberFormatException e) {
+                    throw new DialogException("--output-fd requires a numeric argument");
+                }
                 if (fd == 1) {
                     output = System.out;
-                } else {
+                } else if (fd == 2) {
                     output = System.err;
+                } else {
+                    throw new DialogException("--output-fd only supports values 1 (stdout) or 2 (stderr)");
                 }
                 i++;
                 break;
@@ -507,11 +514,42 @@ public class DialogOptions {
      * @throws DialogException if parsing fails
      */
     private int parseIntArg(final String value, final String name) throws DialogException {
+        final int parsed;
         try {
-            return Integer.parseInt(value);
+            parsed = Integer.parseInt(value);
         } catch (NumberFormatException e) {
             throw new DialogException("Invalid " + name + " value: " + value);
         }
+
+        // Basic range validation for critical numeric arguments.
+        if ("height".equals(name) || "width".equals(name)) {
+            // Allow 0 to indicate auto-sizing; reject only negative values.
+            if (parsed < 0) {
+                throw new DialogException("Invalid " + name + " value (must be >= 0, where 0 enables auto-sizing): " + value);
+            }
+        } else if ("day".equals(name)) {
+            if (parsed < 1 || parsed > 31) {
+                throw new DialogException("Invalid day value (must be between 1 and 31): " + value);
+            }
+        } else if ("month".equals(name)) {
+            if (parsed < 1 || parsed > 12) {
+                throw new DialogException("Invalid month value (must be between 1 and 12): " + value);
+            }
+        } else if ("year".equals(name)) {
+            if (parsed < 1900 || parsed > 2100) {
+                throw new DialogException("Invalid year value (must be between 1900 and 2100): " + value);
+            }
+        } else if ("percent".equals(name)) {
+            if (parsed < 0 || parsed > 100) {
+                throw new DialogException("Invalid percent value (must be between 0 and 100): " + value);
+            }
+        } else if ("menu-height".equals(name)) {
+            if (parsed <= 0) {
+                throw new DialogException("Invalid menu-height value (must be > 0): " + value);
+            }
+        }
+
+        return parsed;
     }
 
     // Getters

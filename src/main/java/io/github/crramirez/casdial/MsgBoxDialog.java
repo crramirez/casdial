@@ -57,6 +57,7 @@ public class MsgBoxDialog extends BaseDialog {
         int buttonY = getHeight() - 4;
 
         addButton(okLabel, buttonX, buttonY, new TAction() {
+            @Override
             public void DO() {
                 closeOk("");
             }

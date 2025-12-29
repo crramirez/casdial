@@ -25,6 +25,9 @@ import java.util.Calendar;
 
 /**
  * CalendarDialog displays a calendar for date selection.
+ * 
+ * The calendar outputs dates in DD/MM/YYYY format to match the standard
+ * Linux dialog command behavior.
  */
 public class CalendarDialog extends BaseDialog {
 
@@ -61,6 +64,7 @@ public class CalendarDialog extends BaseDialog {
 
         // Add calendar widget
         calendar = addCalendar(calX, calY, new TAction() {
+            @Override
             public void DO() {
                 // Date selected - close dialog
                 Calendar cal = calendar.getValue();
@@ -98,6 +102,7 @@ public class CalendarDialog extends BaseDialog {
             int startX = (getWidth() - totalWidth) / 2;
 
             addButton(okLabel, startX, buttonY, new TAction() {
+                @Override
                 public void DO() {
                     Calendar cal = calendar.getValue();
                     String result = String.format("%02d/%02d/%04d",
@@ -110,6 +115,7 @@ public class CalendarDialog extends BaseDialog {
 
             if (!options.isNoCancel()) {
                 addButton(cancelLabel, startX + okWidth + 2, buttonY, new TAction() {
+                    @Override
                     public void DO() {
                         closeCancel();
                     }
@@ -118,6 +124,7 @@ public class CalendarDialog extends BaseDialog {
         } else if (!options.isNoCancel()) {
             int startX = (getWidth() - cancelWidth) / 2;
             addButton(cancelLabel, startX, buttonY, new TAction() {
+                @Override
                 public void DO() {
                     closeCancel();
                 }

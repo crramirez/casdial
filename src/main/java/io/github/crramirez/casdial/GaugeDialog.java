@@ -45,6 +45,11 @@ public class GaugeDialog extends BaseDialog {
     private volatile boolean running = true;
 
     /**
+     * The reader thread for stdin updates.
+     */
+    private Thread readerThread;
+
+    /**
      * Construct a new gauge dialog.
      *
      * @param application the application
@@ -59,9 +64,7 @@ public class GaugeDialog extends BaseDialog {
 
         // Add the message text
         String text = options.getText();
-        /**
-         * The label showing the text.
-         */
+        // The label showing the text.
         addLabel(text, 1, 1);
 
         // Add progress bar
@@ -71,14 +74,13 @@ public class GaugeDialog extends BaseDialog {
 
         progressBar = addProgressBar(1, barY, barWidth, percent);
 
-        // Add percentage label
+        // The percentage label.
         addLabel(percent + "%", (getWidth() - 4) / 2, barY + 1);
 
         // Start a thread to read from stdin for updates
-        Thread readerThread = new Thread(() -> {
-            BufferedReader reader;
+        readerThread = new Thread(() -> {
+            BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
             try {
-                reader = new BufferedReader(new InputStreamReader(System.in));
                 String line;
                 while (running && (line = reader.readLine()) != null) {
                     line = line.trim();
@@ -105,6 +107,7 @@ public class GaugeDialog extends BaseDialog {
                                 if (percent >= 100) {
                                     // Auto-close when complete
                                     application.invokeLater(new Runnable() {
+                                        @Override
                                         public void run() {
                                             closeOk("");
                                         }
@@ -134,6 +137,10 @@ public class GaugeDialog extends BaseDialog {
     @Override
     public void close() {
         running = false;
+        // Interrupt the reader thread to unblock readLine()
+        if (readerThread != null && readerThread.isAlive()) {
+            readerThread.interrupt();
+        }
         super.close();
     }
 }

@@ -116,7 +116,7 @@ public abstract class BaseDialog extends TWindow {
      */
     @Override
     public void onKeypress(final TKeypressEvent keypress) {
-        if (keypress.equals(kbEsc)) {
+        if (keypress.getKey().equals(kbEsc)) {
             // ESC pressed - cancel
             runner.setExitCode(DialogRunner.EXIT_ESC);
             getApplication().closeWindow(this);
