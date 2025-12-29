@@ -523,8 +523,9 @@ public class DialogOptions {
 
         // Basic range validation for critical numeric arguments.
         if ("height".equals(name) || "width".equals(name)) {
-            if (parsed <= 0) {
-                throw new DialogException("Invalid " + name + " value (must be > 0): " + value);
+            // Allow 0 to indicate auto-sizing; reject only negative values.
+            if (parsed < 0) {
+                throw new DialogException("Invalid " + name + " value (must be >= 0, where 0 enables auto-sizing): " + value);
             }
         } else if ("day".equals(name)) {
             if (parsed < 1 || parsed > 31) {
