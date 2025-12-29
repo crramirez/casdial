@@ -544,8 +544,8 @@ public class DialogOptions {
                 throw new DialogException("Invalid percent value (must be between 0 and 100): " + value);
             }
         } else if ("menu-height".equals(name)) {
-            if (parsed <= 0) {
-                throw new DialogException("Invalid menu-height value (must be > 0): " + value);
+            if (parsed < 0) {
+                throw new DialogException("Invalid menu-height value (must be >= 0): " + value);
             }
         }
 

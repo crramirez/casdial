@@ -98,6 +98,10 @@ public class DialogRunner {
 
             return exitCode;
 
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+
+            throw new DialogException("Error running dialog: " + e.getMessage(), e);
         } catch (Exception e) {
             throw new DialogException("Error running dialog: " + e.getMessage(), e);
         }
