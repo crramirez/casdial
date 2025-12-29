@@ -1,0 +1,89 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run (do not push release)'
+        required: false
+        default: 'false'
+        type: boolean
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      # GraalVM Java 25 is needed for native image compilation (graalvmNative plugin)
+      - name: Set up GraalVM Java 25
+        uses: graalvm/setup-graalvm@v1
+        with:
+          java-version: '25'
+          distribution: 'graalvm-community'
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      # Java 21 is the main toolchain for the project
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - name: Install fpm for packaging
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ruby ruby-dev build-essential rpm
+          sudo gem install fpm
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Get version before release
+        id: version
+        run: |
+          VERSION=$(grep "^version=" gradle.properties | cut -d'=' -f2 | sed 's/-SNAPSHOT//')
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Run Gradle release
+        if: ${{ github.event.inputs.dry_run != 'true' }}
+        run: ./gradlew release -Prelease.useAutomaticVersion=true
+
+      - name: Run Gradle release (dry run)
+        if: ${{ github.event.inputs.dry_run == 'true' }}
+        run: ./gradlew build jarFull buildPackages
+
+      - name: Find release artifacts
+        id: artifacts
+        run: |
+          VERSION=${{ steps.version.outputs.version }}
+          echo "jar_path=build/libs/casdial-${VERSION}-full.jar" >> $GITHUB_OUTPUT
+          echo "deb_path=build/distributions/deb/casdial_${VERSION}-1_amd64.deb" >> $GITHUB_OUTPUT
+          echo "rpm_path=build/distributions/rpm/casdial-${VERSION}-1.x86_64.rpm" >> $GITHUB_OUTPUT
+
+      - name: Create GitHub Release
+        if: ${{ github.event.inputs.dry_run != 'true' }}
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.version.outputs.version }}
+          name: Release v${{ steps.version.outputs.version }}
+          draft: false
+          prerelease: false
+          files: |
+            ${{ steps.artifacts.outputs.jar_path }}
+            ${{ steps.artifacts.outputs.deb_path }}
+            ${{ steps.artifacts.outputs.rpm_path }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
