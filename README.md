@@ -133,5 +133,5 @@ Apache License 2.0 - Copyright 2025 Carlos Rafael Ramirez
 
 ## Dependencies
 
-- [Casciian 1.0](https://github.com/crramirez/casciian) - Java Text User Interface library
+- [Casciian 1.1](https://github.com/crramirez/casciian) - Java Text User Interface library
 
