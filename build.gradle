@@ -109,8 +109,9 @@ def rpmOutputDir = layout.buildDirectory.dir('distributions/rpm').get().asFile
 
 // Detect system architecture for packaging
 def osArch = System.getProperty('os.arch')
-def debArch = osArch == 'aarch64' ? 'arm64' : 'amd64'
-def rpmArch = osArch == 'aarch64' ? 'aarch64' : 'x86_64'
+def isArm64 = osArch == 'aarch64' || osArch == 'arm64'
+def debArch = isArm64 ? 'arm64' : 'amd64'
+def rpmArch = isArm64 ? 'aarch64' : 'x86_64'
 
 tasks.register('preparePackaging') {
     group = 'distribution'

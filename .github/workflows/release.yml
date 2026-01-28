@@ -71,19 +71,15 @@ jobs:
         include:
           - os: ubuntu-latest
             arch: amd64
-            deb_arch: amd64
-            rpm_arch: x86_64
           - os: ubuntu-24.04-arm
             arch: arm64
-            deb_arch: arm64
-            rpm_arch: aarch64
     runs-on: ${{ matrix.os }}
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          ref: ${{ needs.prepare-release.outputs.tag }}
+          ref: ${{ github.event.inputs.dry_run == 'true' && github.sha || needs.prepare-release.outputs.tag }}
           fetch-depth: 0
 
       - name: Set up GraalVM Java 25
@@ -116,8 +112,8 @@ jobs:
             JAR_PATH=$(ls build/libs/casdial-*-full.jar 2>/dev/null | head -n 1 || echo "")
             echo "jar_path=$JAR_PATH" >> $GITHUB_OUTPUT
           fi
-          DEB_PATH=$(ls build/distributions/deb/casdial_*_${{ matrix.deb_arch }}.deb 2>/dev/null | head -n 1 || echo "")
-          RPM_PATH=$(ls build/distributions/rpm/casdial-*.${{ matrix.rpm_arch }}.rpm 2>/dev/null | head -n 1 || echo "")
+          DEB_PATH=$(ls build/distributions/deb/casdial_*.deb 2>/dev/null | head -n 1 || echo "")
+          RPM_PATH=$(ls build/distributions/rpm/casdial-*.rpm 2>/dev/null | head -n 1 || echo "")
           echo "deb_path=$DEB_PATH" >> $GITHUB_OUTPUT
           echo "rpm_path=$RPM_PATH" >> $GITHUB_OUTPUT
 
