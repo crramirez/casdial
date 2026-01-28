@@ -1,0 +1,126 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run (do not push release)'
+        required: false
+        default: 'false'
+        type: boolean
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Set up GraalVM Java 25
+        uses: graalvm/setup-graalvm@v1
+        with:
+          java-version: '25'
+          distribution: 'graalvm-community'
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install fpm for packaging
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ruby ruby-dev build-essential rpm
+          sudo gem install fpm
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Get version before release
+        id: version
+        run: |
+          VERSION=$(grep "^version=" gradle.properties | cut -d'=' -f2 | sed 's/-SNAPSHOT//')
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Show release version (dry run)
+        if: ${{ github.event.inputs.dry_run == 'true' }}
+        run: echo "Dry run for version ${{ steps.version.outputs.version }} (no release will be created)"
+
+      - name: Run Gradle release
+        if: ${{ github.event.inputs.dry_run != 'true' }}
+        run: ./gradlew release -Prelease.useAutomaticVersion=true
+
+      - name: Run Gradle build (dry run)
+        if: ${{ github.event.inputs.dry_run == 'true' }}
+        run: ./gradlew build jarFull nativeCompile buildPackages
+
+      - name: Find release artifacts
+        id: artifacts
+        run: |
+          JAR_PATH=$(ls build/libs/casdial-*-full.jar 2>/dev/null | head -n 1 || echo "")
+          DEB_PATH=$(ls build/distributions/deb/casdial_*_amd64.deb 2>/dev/null | head -n 1 || echo "")
+          RPM_PATH=$(ls build/distributions/rpm/casdial-*.x86_64.rpm 2>/dev/null | head -n 1 || echo "")
+          echo "jar_path=$JAR_PATH" >> $GITHUB_OUTPUT
+          echo "deb_path=$DEB_PATH" >> $GITHUB_OUTPUT
+          echo "rpm_path=$RPM_PATH" >> $GITHUB_OUTPUT
+
+      - name: Verify release artifacts exist
+        run: |
+          echo "Verifying release artifacts:"
+          echo "  JAR: ${{ steps.artifacts.outputs.jar_path }}"
+          echo "  DEB: ${{ steps.artifacts.outputs.deb_path }}"
+          echo "  RPM: ${{ steps.artifacts.outputs.rpm_path }}"
+
+          MISSING=0
+
+          if [ -z "${{ steps.artifacts.outputs.jar_path }}" ] || [ ! -f "${{ steps.artifacts.outputs.jar_path }}" ]; then
+            echo "::error::Missing JAR artifact"
+            MISSING=1
+          fi
+
+          if [ -z "${{ steps.artifacts.outputs.deb_path }}" ] || [ ! -f "${{ steps.artifacts.outputs.deb_path }}" ]; then
+            echo "::error::Missing DEB artifact"
+            MISSING=1
+          fi
+
+          if [ -z "${{ steps.artifacts.outputs.rpm_path }}" ] || [ ! -f "${{ steps.artifacts.outputs.rpm_path }}" ]; then
+            echo "::error::Missing RPM artifact"
+            MISSING=1
+          fi
+
+          if [ "${MISSING}" -ne 0 ]; then
+            echo "One or more release artifacts are missing. Failing the workflow."
+            exit 1
+          fi
+
+          echo "All artifacts verified successfully!"
+
+      - name: Get release tag
+        if: ${{ github.event.inputs.dry_run != 'true' }}
+        id: release_tag
+        run: |
+          TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+          echo "Release tag: $TAG"
+
+      - name: Create GitHub Release
+        if: ${{ github.event.inputs.dry_run != 'true' }}
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.release_tag.outputs.tag }}
+          name: Release ${{ steps.release_tag.outputs.tag }}
+          draft: false
+          prerelease: false
+          files: |
+            ${{ steps.artifacts.outputs.jar_path }}
+            ${{ steps.artifacts.outputs.deb_path }}
+            ${{ steps.artifacts.outputs.rpm_path }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
