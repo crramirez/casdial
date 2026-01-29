@@ -13,9 +13,11 @@ permissions:
   contents: write
 
 jobs:
-  release:
+  prepare-release:
     runs-on: ubuntu-latest
-
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      tag: ${{ steps.release_tag.outputs.tag }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -26,6 +28,64 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Set up JDK 25
+        uses: actions/setup-java@v4
+        with:
+          java-version: '25'
+          distribution: 'temurin'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Get version before release
+        id: version
+        run: |
+          VERSION=$(grep "^version=" gradle.properties | cut -d'=' -f2 | sed 's/-SNAPSHOT//')
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Show release version (dry run)
+        if: ${{ github.event.inputs.dry_run == 'true' }}
+        run: echo "Dry run for version ${{ steps.version.outputs.version }} (no release will be created)"
+
+      - name: Run Gradle release
+        if: ${{ github.event.inputs.dry_run != 'true' }}
+        run: ./gradlew release -Prelease.useAutomaticVersion=true -x nativeCompile -x preparePackaging -x buildPackages
+
+      - name: Get release tag
+        id: release_tag
+        run: |
+          if [ "${{ github.event.inputs.dry_run }}" != "true" ]; then
+            git fetch --tags
+            if TAG=$(git describe --tags --abbrev=0 2>/dev/null); then
+              : # Tag found successfully
+            else
+              echo "Error: release tag not found. Expected tag 'v${{ steps.version.outputs.version }}' to be created by Gradle release." >&2
+              exit 1
+            fi
+          else
+            TAG="v${{ steps.version.outputs.version }}"
+          fi
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+          echo "Release tag: $TAG"
+
+  build:
+    needs: prepare-release
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            arch: amd64
+          - os: ubuntu-24.04-arm64
+            arch: arm64
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.dry_run == 'true' && github.sha || needs.prepare-release.outputs.tag }}
+          fetch-depth: 0
 
       - name: Set up GraalVM Java 25
         uses: graalvm/setup-graalvm@v1
@@ -43,47 +103,40 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
 
-      - name: Get version before release
-        id: version
-        run: |
-          VERSION=$(grep "^version=" gradle.properties | cut -d'=' -f2 | sed 's/-SNAPSHOT//')
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
+      - name: Build JAR (amd64 only)
+        if: matrix.arch == 'amd64'
+        run: ./gradlew build jarFull
 
-      - name: Show release version (dry run)
-        if: ${{ github.event.inputs.dry_run == 'true' }}
-        run: echo "Dry run for version ${{ steps.version.outputs.version }} (no release will be created)"
-
-      - name: Run Gradle release
-        if: ${{ github.event.inputs.dry_run != 'true' }}
-        run: ./gradlew release -Prelease.useAutomaticVersion=true
-
-      - name: Run Gradle build (dry run)
-        if: ${{ github.event.inputs.dry_run == 'true' }}
-        run: ./gradlew build jarFull nativeCompile buildPackages
+      - name: Build native binary and packages
+        run: ./gradlew nativeCompile buildPackages
 
       - name: Find release artifacts
         id: artifacts
         run: |
-          JAR_PATH=$(ls build/libs/casdial-*-full.jar 2>/dev/null | head -n 1 || echo "")
-          DEB_PATH=$(ls build/distributions/deb/casdial_*_amd64.deb 2>/dev/null | head -n 1 || echo "")
-          RPM_PATH=$(ls build/distributions/rpm/casdial-*.x86_64.rpm 2>/dev/null | head -n 1 || echo "")
-          echo "jar_path=$JAR_PATH" >> $GITHUB_OUTPUT
+          if [ "${{ matrix.arch }}" == "amd64" ]; then
+            JAR_PATH=$(ls build/libs/casdial-*-full.jar 2>/dev/null | head -n 1 || echo "")
+            echo "jar_path=$JAR_PATH" >> $GITHUB_OUTPUT
+          fi
+          DEB_PATH=$(ls build/distributions/deb/casdial_*.deb 2>/dev/null | head -n 1 || echo "")
+          RPM_PATH=$(ls build/distributions/rpm/casdial-*.rpm 2>/dev/null | head -n 1 || echo "")
           echo "deb_path=$DEB_PATH" >> $GITHUB_OUTPUT
           echo "rpm_path=$RPM_PATH" >> $GITHUB_OUTPUT
 
       - name: Verify release artifacts exist
         run: |
-          echo "Verifying release artifacts:"
-          echo "  JAR: ${{ steps.artifacts.outputs.jar_path }}"
-          echo "  DEB: ${{ steps.artifacts.outputs.deb_path }}"
-          echo "  RPM: ${{ steps.artifacts.outputs.rpm_path }}"
-
+          echo "Verifying release artifacts for ${{ matrix.arch }}:"
           MISSING=0
 
-          if [ -z "${{ steps.artifacts.outputs.jar_path }}" ] || [ ! -f "${{ steps.artifacts.outputs.jar_path }}" ]; then
-            echo "::error::Missing JAR artifact"
-            MISSING=1
+          if [ "${{ matrix.arch }}" == "amd64" ]; then
+            echo "  JAR: ${{ steps.artifacts.outputs.jar_path }}"
+            if [ -z "${{ steps.artifacts.outputs.jar_path }}" ] || [ ! -f "${{ steps.artifacts.outputs.jar_path }}" ]; then
+              echo "::error::Missing JAR artifact"
+              MISSING=1
+            fi
           fi
+
+          echo "  DEB: ${{ steps.artifacts.outputs.deb_path }}"
+          echo "  RPM: ${{ steps.artifacts.outputs.rpm_path }}"
 
           if [ -z "${{ steps.artifacts.outputs.deb_path }}" ] || [ ! -f "${{ steps.artifacts.outputs.deb_path }}" ]; then
             echo "::error::Missing DEB artifact"
@@ -102,25 +155,87 @@ jobs:
 
           echo "All artifacts verified successfully!"
 
-      - name: Get release tag
-        if: ${{ github.event.inputs.dry_run != 'true' }}
-        id: release_tag
+      - name: Upload JAR artifact (amd64 only)
+        if: matrix.arch == 'amd64'
+        uses: actions/upload-artifact@v4.6.0
+        with:
+          name: jar-artifact
+          path: ${{ steps.artifacts.outputs.jar_path }}
+
+      - name: Upload DEB artifact
+        uses: actions/upload-artifact@v4.6.0
+        with:
+          name: deb-${{ matrix.arch }}
+          path: ${{ steps.artifacts.outputs.deb_path }}
+
+      - name: Upload RPM artifact
+        uses: actions/upload-artifact@v4.6.0
+        with:
+          name: rpm-${{ matrix.arch }}
+          path: ${{ steps.artifacts.outputs.rpm_path }}
+
+  create-release:
+    needs: [prepare-release, build]
+    runs-on: ubuntu-latest
+    if: ${{ github.event.inputs.dry_run != 'true' }}
+
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4.1.8
+        with:
+          path: artifacts
+
+      - name: List downloaded artifacts
+        run: find artifacts -type f
+
+      - name: Verify artifact counts
         run: |
-          TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
-          echo "tag=$TAG" >> $GITHUB_OUTPUT
-          echo "Release tag: $TAG"
+          echo "Verifying artifact counts..."
+          JAR_COUNT=$(find artifacts/jar-artifact -name "*.jar" 2>/dev/null | wc -l)
+          DEB_AMD64_COUNT=$(find artifacts/deb-amd64 -name "*.deb" 2>/dev/null | wc -l)
+          DEB_ARM64_COUNT=$(find artifacts/deb-arm64 -name "*.deb" 2>/dev/null | wc -l)
+          RPM_AMD64_COUNT=$(find artifacts/rpm-amd64 -name "*.rpm" 2>/dev/null | wc -l)
+          RPM_ARM64_COUNT=$(find artifacts/rpm-arm64 -name "*.rpm" 2>/dev/null | wc -l)
+          
+          ERROR=0
+          if [ "$JAR_COUNT" -ne 1 ]; then
+            echo "::error::Expected 1 JAR artifact, found $JAR_COUNT"
+            ERROR=1
+          fi
+          if [ "$DEB_AMD64_COUNT" -ne 1 ]; then
+            echo "::error::Expected 1 DEB amd64 artifact, found $DEB_AMD64_COUNT"
+            ERROR=1
+          fi
+          if [ "$DEB_ARM64_COUNT" -ne 1 ]; then
+            echo "::error::Expected 1 DEB arm64 artifact, found $DEB_ARM64_COUNT"
+            ERROR=1
+          fi
+          if [ "$RPM_AMD64_COUNT" -ne 1 ]; then
+            echo "::error::Expected 1 RPM amd64 artifact, found $RPM_AMD64_COUNT"
+            ERROR=1
+          fi
+          if [ "$RPM_ARM64_COUNT" -ne 1 ]; then
+            echo "::error::Expected 1 RPM arm64 artifact, found $RPM_ARM64_COUNT"
+            ERROR=1
+          fi
+          
+          if [ "$ERROR" -ne 0 ]; then
+            exit 1
+          fi
+          echo "All artifact counts verified successfully!"
 
       - name: Create GitHub Release
-        if: ${{ github.event.inputs.dry_run != 'true' }}
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ steps.release_tag.outputs.tag }}
-          name: Release ${{ steps.release_tag.outputs.tag }}
+          tag_name: ${{ needs.prepare-release.outputs.tag }}
+          name: Release ${{ needs.prepare-release.outputs.tag }}
           draft: false
           prerelease: false
           files: |
-            ${{ steps.artifacts.outputs.jar_path }}
-            ${{ steps.artifacts.outputs.deb_path }}
-            ${{ steps.artifacts.outputs.rpm_path }}
+            artifacts/jar-artifact/*.jar
+            artifacts/deb-amd64/*.deb
+            artifacts/deb-arm64/*.deb
+            artifacts/rpm-amd64/*.rpm
+            artifacts/rpm-arm64/*.rpm
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

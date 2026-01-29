@@ -107,6 +107,12 @@ def packagingDir = layout.buildDirectory.dir('packaging').get().asFile
 def debOutputDir = layout.buildDirectory.dir('distributions/deb').get().asFile
 def rpmOutputDir = layout.buildDirectory.dir('distributions/rpm').get().asFile
 
+// Detect system architecture for packaging
+def osArch = System.getProperty('os.arch')
+def isArm64 = osArch == 'aarch64' || osArch == 'arm64'
+def debArch = isArm64 ? 'arm64' : 'amd64'
+def rpmArch = isArm64 ? 'aarch64' : 'x86_64'
+
 tasks.register('preparePackaging') {
     group = 'distribution'
     description = 'Prepares directory structure for packaging (requires native binary)'
@@ -150,13 +156,13 @@ tasks.register('buildDeb', Exec) {
             '-n', 'casdial',
             '-v', packageVersion,
             '--iteration', '1',
-            '-a', 'amd64',
+            '-a', debArch,
             '--description', 'Dialog command compatible based on casciian',
             '--url', 'https://github.com/crramirez/casdial',
             '--maintainer', 'Carlos Rafael Ramirez',
             '--license', 'Apache-2.0',
             '-C', packagingDir.absolutePath,
-            '-p', "${debOutputDir.absolutePath}/casdial_${packageVersion}-1_amd64.deb",
+            '-p', "${debOutputDir.absolutePath}/casdial_${packageVersion}-1_${debArch}.deb",
             '.'
 }
 
@@ -177,13 +183,13 @@ tasks.register('buildRpm', Exec) {
             '-n', 'casdial',
             '-v', packageVersion,
             '--iteration', '1',
-            '-a', 'x86_64',
+            '-a', rpmArch,
             '--description', 'Dialog command compatible based on casciian',
             '--url', 'https://github.com/crramirez/casdial',
             '--maintainer', 'Carlos Rafael Ramirez',
             '--license', 'Apache-2.0',
             '-C', packagingDir.absolutePath,
-            '-p', "${rpmOutputDir.absolutePath}/casdial-${packageVersion}-1.x86_64.rpm",
+            '-p', "${rpmOutputDir.absolutePath}/casdial-${packageVersion}-1.${rpmArch}.rpm",
             '.'
 }
 
