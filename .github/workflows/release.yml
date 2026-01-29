@@ -50,14 +50,19 @@ jobs:
 
       - name: Run Gradle release
         if: ${{ github.event.inputs.dry_run != 'true' }}
-        run: ./gradlew release -Prelease.useAutomaticVersion=true -x nativeCompile -x buildPackages
+        run: ./gradlew release -Prelease.useAutomaticVersion=true -x nativeCompile -x preparePackaging -x buildPackages
 
       - name: Get release tag
         id: release_tag
         run: |
           if [ "${{ github.event.inputs.dry_run }}" != "true" ]; then
             git fetch --tags
-            TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v${{ steps.version.outputs.version }}")
+            if TAG=$(git describe --tags --abbrev=0 2>/dev/null); then
+              :
+            else
+              echo "Error: release tag not found. Expected tag 'v${{ steps.version.outputs.version }}' to be created by Gradle release." >&2
+              exit 1
+            fi
           else
             TAG="v${{ steps.version.outputs.version }}"
           fi
@@ -71,7 +76,7 @@ jobs:
         include:
           - os: ubuntu-latest
             arch: amd64
-          - os: ubuntu-24.04-arm
+          - os: ubuntu-24.04-arm64
             arch: arm64
     runs-on: ${{ matrix.os }}
 
@@ -152,19 +157,19 @@ jobs:
 
       - name: Upload JAR artifact (amd64 only)
         if: matrix.arch == 'amd64'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v4.6.0
         with:
           name: jar-artifact
           path: ${{ steps.artifacts.outputs.jar_path }}
 
       - name: Upload DEB artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v4.6.0
         with:
           name: deb-${{ matrix.arch }}
           path: ${{ steps.artifacts.outputs.deb_path }}
 
       - name: Upload RPM artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v4.6.0
         with:
           name: rpm-${{ matrix.arch }}
           path: ${{ steps.artifacts.outputs.rpm_path }}
@@ -182,6 +187,42 @@ jobs:
 
       - name: List downloaded artifacts
         run: find artifacts -type f
+
+      - name: Verify artifact counts
+        run: |
+          echo "Verifying artifact counts..."
+          JAR_COUNT=$(find artifacts/jar-artifact -name "*.jar" 2>/dev/null | wc -l)
+          DEB_AMD64_COUNT=$(find artifacts/deb-amd64 -name "*.deb" 2>/dev/null | wc -l)
+          DEB_ARM64_COUNT=$(find artifacts/deb-arm64 -name "*.deb" 2>/dev/null | wc -l)
+          RPM_AMD64_COUNT=$(find artifacts/rpm-amd64 -name "*.rpm" 2>/dev/null | wc -l)
+          RPM_ARM64_COUNT=$(find artifacts/rpm-arm64 -name "*.rpm" 2>/dev/null | wc -l)
+          
+          ERROR=0
+          if [ "$JAR_COUNT" -ne 1 ]; then
+            echo "::error::Expected 1 JAR artifact, found $JAR_COUNT"
+            ERROR=1
+          fi
+          if [ "$DEB_AMD64_COUNT" -ne 1 ]; then
+            echo "::error::Expected 1 DEB amd64 artifact, found $DEB_AMD64_COUNT"
+            ERROR=1
+          fi
+          if [ "$DEB_ARM64_COUNT" -ne 1 ]; then
+            echo "::error::Expected 1 DEB arm64 artifact, found $DEB_ARM64_COUNT"
+            ERROR=1
+          fi
+          if [ "$RPM_AMD64_COUNT" -ne 1 ]; then
+            echo "::error::Expected 1 RPM amd64 artifact, found $RPM_AMD64_COUNT"
+            ERROR=1
+          fi
+          if [ "$RPM_ARM64_COUNT" -ne 1 ]; then
+            echo "::error::Expected 1 RPM arm64 artifact, found $RPM_ARM64_COUNT"
+            ERROR=1
+          fi
+          
+          if [ "$ERROR" -ne 0 ]; then
+            exit 1
+          fi
+          echo "All artifact counts verified successfully!"
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
