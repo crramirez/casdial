@@ -58,7 +58,7 @@ jobs:
           if [ "${{ github.event.inputs.dry_run }}" != "true" ]; then
             git fetch --tags
             if TAG=$(git describe --tags --abbrev=0 2>/dev/null); then
-              :
+              : # Tag found successfully
             else
               echo "Error: release tag not found. Expected tag 'v${{ steps.version.outputs.version }}' to be created by Gradle release." >&2
               exit 1
