@@ -76,7 +76,7 @@ jobs:
         include:
           - os: ubuntu-latest
             arch: amd64
-          - os: ubuntu-latest
+          - os: ubuntu-22.04
             arch: arm64
     runs-on: ${{ matrix.os }}
 
