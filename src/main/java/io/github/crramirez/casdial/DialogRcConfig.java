@@ -20,6 +20,7 @@ package io.github.crramirez.casdial;
 import casciian.bits.CellAttributes;
 import casciian.bits.Color;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -176,12 +177,14 @@ public class DialogRcConfig {
 
     /**
      * Get a color attribute by name.
+     * Returns a defensive copy to prevent external modification.
      *
      * @param name the dialogrc color name
-     * @return the CellAttributes, or null if not set
+     * @return a copy of the CellAttributes, or null if not set
      */
     public CellAttributes getColor(final String name) {
-        return colors.get(name);
+        CellAttributes original = colors.get(name);
+        return (original != null) ? new CellAttributes(original) : null;
     }
 
     /**
@@ -195,12 +198,13 @@ public class DialogRcConfig {
     }
 
     /**
-     * Get all color names.
+     * Get all color names as an unmodifiable map.
+     * The returned map is a read-only view to prevent external modification.
      *
-     * @return the map of color names to attributes
+     * @return an unmodifiable map of color names to attributes
      */
     public Map<String, CellAttributes> getColors() {
-        return colors;
+        return Collections.unmodifiableMap(colors);
     }
 
     /**

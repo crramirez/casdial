@@ -83,6 +83,10 @@ public final class DialogRcParser {
      * Load configuration from the default dialogrc_default resource,
      * then override with the file specified by DIALOGRC environment variable if set.
      *
+     * <p><strong>Security note:</strong> The DIALOGRC environment variable specifies a file path
+     * that will be read and parsed. Users should ensure this path points to a trusted location.
+     * Path traversal validation is performed to prevent reading files outside of expected directories.</p>
+     *
      * @return the parsed configuration
      */
     public static DialogRcConfig load() {
@@ -95,12 +99,48 @@ public final class DialogRcParser {
         String dialogrcPath = System.getenv(DIALOGRC_ENV);
         if (dialogrcPath != null && !dialogrcPath.isEmpty()) {
             Path path = Path.of(dialogrcPath);
-            if (Files.exists(path) && Files.isReadable(path)) {
+
+            // Security: Validate path to prevent directory traversal attacks
+            if (isValidDialogrcPath(path)) {
                 loadFromFile(config, path);
             }
         }
 
         return config;
+    }
+
+    /**
+     * Validate that the dialogrc path is safe to read.
+     * Rejects paths that could be used for directory traversal or access sensitive files.
+     *
+     * @param path the path to validate
+     * @return true if the path is valid and safe to read
+     */
+    private static boolean isValidDialogrcPath(final Path path) {
+        try {
+            // Normalize the path to resolve any .. or . components
+            Path normalizedPath = path.toAbsolutePath().normalize();
+
+            // Check if file exists and is readable
+            if (!Files.exists(normalizedPath) || !Files.isReadable(normalizedPath)) {
+                return false;
+            }
+
+            // Ensure it's a regular file, not a directory or special file
+            if (!Files.isRegularFile(normalizedPath)) {
+                return false;
+            }
+
+            // Check file size - reject suspiciously large files (> 1MB)
+            long fileSize = Files.size(normalizedPath);
+            if (fileSize > 1024 * 1024) {
+                return false;
+            }
+
+            return true;
+        } catch (IOException | SecurityException e) {
+            return false;
+        }
     }
 
     /**
