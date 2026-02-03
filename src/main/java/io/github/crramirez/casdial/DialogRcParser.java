@@ -93,7 +93,7 @@ public final class DialogRcParser {
         DialogRcConfig config = new DialogRcConfig();
 
         // First, load the default configuration from resource
-        loadDefaultResource(config);
+        //loadDefaultResource(config);
 
         // Then, check for DIALOGRC environment variable
         String dialogrcPath = System.getenv(DIALOGRC_ENV);
