@@ -57,6 +57,11 @@ public final class DialogRcParser {
             "\\(\\s*([A-Za-z]+)\\s*,\\s*([A-Za-z]+)\\s*(?:,\\s*([A-Za-z]+))?(?:,\\s*([A-Za-z]+))?(?:,\\s*([A-Za-z]+))?\\s*\\)");
 
     /**
+     * Maximum depth for resolving color references to prevent infinite loops.
+     */
+    private static final int MAX_REFERENCE_DEPTH = 10;
+
+    /**
      * Pattern to match string values: "string"
      */
     private static final Pattern STRING_PATTERN = Pattern.compile("\"([^\"]*)\"");
@@ -246,14 +251,14 @@ public final class DialogRcParser {
     private static CellAttributes parseAttribute(final String value, final Map<String, String> rawValues) {
         // Check if it's a reference to another color (e.g., "dialog_color")
         String resolved = value.trim();
-        int maxDepth = 10; // Prevent infinite loops
-        while (!resolved.startsWith("(") && maxDepth > 0) {
+        int depth = MAX_REFERENCE_DEPTH;
+        while (!resolved.startsWith("(") && depth > 0) {
             String referenced = rawValues.get(resolved.toLowerCase());
             if (referenced == null) {
                 break;
             }
             resolved = referenced.trim();
-            maxDepth--;
+            depth--;
         }
 
         // Parse the attribute tuple
@@ -311,16 +316,14 @@ public final class DialogRcParser {
         // Window/Dialog colors
         applyColor(theme, ColorTheme.TWINDOW_BACKGROUND, config.getColor("dialog_color"));
         applyColor(theme, ColorTheme.TWINDOW_BACKGROUND_MODAL, config.getColor("dialog_color"));
-        applyColor(theme, ColorTheme.TWINDOW_BORDER, config.getColor("border_color"));
-        applyColor(theme, ColorTheme.TWINDOW_BORDER_MODAL, config.getColor("border_color"));
 
-        // Title - map to window border colors since casciian doesn't have separate title colors
+        // Window border: use title_color if available (since dialog shows title on border),
+        // otherwise fall back to border_color
         CellAttributes titleColor = config.getColor("title_color");
-        if (titleColor != null) {
-            // Title is typically shown on the border
-            applyColor(theme, ColorTheme.TWINDOW_BORDER, titleColor);
-            applyColor(theme, ColorTheme.TWINDOW_BORDER_MODAL, titleColor);
-        }
+        CellAttributes borderColor = config.getColor("border_color");
+        CellAttributes effectiveBorderColor = (titleColor != null) ? titleColor : borderColor;
+        applyColor(theme, ColorTheme.TWINDOW_BORDER, effectiveBorderColor);
+        applyColor(theme, ColorTheme.TWINDOW_BORDER_MODAL, effectiveBorderColor);
 
         // Button colors
         applyColor(theme, ColorTheme.TBUTTON_ACTIVE, config.getColor("button_active_color"));

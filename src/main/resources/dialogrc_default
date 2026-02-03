@@ -11,7 +11,7 @@
 # Boolean    -  <ON|OFF>
 # Attribute  -  (foreground,background,highlight?,underline?,reverse?)
 
-# Set aspect-ration.
+# Set aspect-ratio.
 aspect = 0
 
 # Set separator (for multiple widgets output).
