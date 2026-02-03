@@ -31,7 +31,7 @@ repositories {
 }
 
 dependencies {
-    implementation 'io.github.crramirez:casciian:1.2'
+    implementation 'io.github.crramirez:casciian:1.3'
 }
 
 sourceSets {
