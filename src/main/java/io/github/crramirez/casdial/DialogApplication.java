@@ -38,6 +38,11 @@ public class DialogApplication extends TApplication {
     private final DialogRunner runner;
 
     /**
+     * The dialogrc configuration.
+     */
+    private final DialogRcConfig dialogRcConfig;
+
+    /**
      * Whether the application has finished.
      */
     private volatile boolean finished = false;
@@ -56,6 +61,12 @@ public class DialogApplication extends TApplication {
 
         this.options = options;
         this.runner = runner;
+
+        // Load dialogrc configuration (from default and DIALOGRC env var)
+        this.dialogRcConfig = DialogRcParser.load();
+
+        // Apply dialogrc colors to the theme
+        DialogRcParser.applyToTheme(getTheme(), dialogRcConfig);
 
         // Remove default desktop for cleaner look
         var desktop = new TDesktop(this);
@@ -170,10 +181,14 @@ public class DialogApplication extends TApplication {
 
         // Draw backtitle at the top if specified
         if (options.getBacktitle() != null && !options.getBacktitle().isEmpty()) {
-            CellAttributes attr = new CellAttributes();
-            attr.setForeColor(Color.WHITE);
-            attr.setBackColor(Color.BLUE);
-            attr.setBold(true);
+            // Use screen_color from dialogrc if available, otherwise use defaults
+            CellAttributes attr = dialogRcConfig.getColor("screen_color");
+            if (attr == null) {
+                attr = new CellAttributes();
+                attr.setForeColor(Color.WHITE);
+                attr.setBackColor(Color.BLUE);
+                attr.setBold(true);
+            }
 
             String bt = options.getBacktitle();
             int x = (getScreen().getWidth() - bt.length()) / 2;
@@ -200,5 +215,14 @@ public class DialogApplication extends TApplication {
      */
     public DialogRunner getDialogRunner() {
         return runner;
+    }
+
+    /**
+     * Get the dialogrc configuration.
+     *
+     * @return the dialogrc configuration
+     */
+    public DialogRcConfig getDialogRcConfig() {
+        return dialogRcConfig;
     }
 }
