@@ -98,6 +98,33 @@ graalvmNative {
     }
 }
 
+// Windows distribution: pack the native exe into a zip (no code signing available)
+tasks.register('windowsZip', Zip) {
+    group = 'distribution'
+    description = 'Creates a ZIP distribution of the Windows native executable (unsigned).'
+    dependsOn('nativeCompile')
+
+    // Only build this ZIP on Windows
+    onlyIf { System.getProperty('os.name').toLowerCase().contains('windows') }
+
+    def nativeImageName = graalvmNative.binaries.main.imageName.get()
+
+    // Fail fast if the expected .exe is not present to avoid creating an empty/invalid ZIP
+    doFirst {
+        def exeFile = layout.buildDirectory.file("native/nativeCompile/${nativeImageName}.exe").get().asFile
+        if (!exeFile.exists()) {
+            throw new GradleException("Expected Windows native executable not found at ${exeFile}. Run './gradlew nativeCompile' on Windows to build the .exe before creating the ZIP.")
+        }
+    }
+
+    from(layout.buildDirectory.dir("native/nativeCompile")) {
+        include "${nativeImageName}.exe"
+    }
+    archiveBaseName.set("${nativeImageName}-windows")
+    archiveVersion.set(project.version.toString())
+    destinationDirectory.set(layout.buildDirectory.dir("distributions"))
+}
+
 // -----------------------------------------------------------------------------
 // DEB and RPM packaging using fpm
 // Packages can be built from either native binary or JAR
